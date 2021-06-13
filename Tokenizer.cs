@@ -13,9 +13,9 @@
         {
             _lpsTables = new List<int[]>();
             _emptyDelim = false;
-            var enumerable = delimiters.ToList();
-            _patterns = enumerable;
-            foreach (var delim in enumerable)
+            var strings = delimiters.ToList();
+            _patterns = strings;
+            foreach (var delim in strings)
             {
                 if (delim.Equals(""))
                 {
@@ -34,7 +34,7 @@
         public IEnumerable<int> Tokenize(string line, ref int maxIndices,
             ref int wordCount)
         {
-            var tokens = new int[line.Length];
+            var tokens = new int[line.Length + 1];
 
             for (var i = 0; i < _lpsTables.Count; i++)
             {
@@ -47,12 +47,19 @@
 
         private void CreateIndices(ref int[] tokens, ref int maxIndices, ref int wordCount)
         {
-            var idx = 0;
+            int idx = 0, e = tokens.Length - 1;
             var neg = 0;
-
+            if (tokens[e] > 0)
+            {
+                var trimEnd = tokens[e];
+                while (trimEnd > 0)
+                {
+                    trimEnd += tokens[--e];
+                }
+            }
             if (_emptyDelim)
             {
-                for (var i = 0; i < tokens.Length; i++)
+                for (var i = 0; i <= e; i++)
                 {
                     if (maxIndices == -1 || idx < maxIndices)
                     {
@@ -78,7 +85,7 @@
             }
             else
             {
-                for (var i = 0; i < tokens.Length; i++)
+                for (var i = 0; i <= e; i++)
                 {
                     if (maxIndices == -1 || idx < maxIndices)
                     {
@@ -98,6 +105,7 @@
                     if (i == 0 || tokens[i - 1] < 0 && (maxIndices == -1 || idx < maxIndices)) tokens[i] = ++idx;
                     else if (i > 0 && tokens[i - 1] > 0) tokens[i] = idx;
                 }
+                
             }
 
             if (idx == 0) tokens = Array.Empty<int>();
@@ -127,7 +135,8 @@
                         if (j == _patterns[idx].Length)
                         {
                             tokens[i - j] -= _patterns[idx].Length;
-                            if(i < line.Length) tokens[i] += _patterns[idx].Length;
+                            tokens[i] += _patterns[idx].Length;
+                            
                             j = _lpsTables[idx][j - 1];
                         }
                         else if (i < line.Length && line[i] != _patterns[idx][j])

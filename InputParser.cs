@@ -48,7 +48,11 @@
         public string[] Delimiters
         {
             get => _delimiters;
-            set { _delimiters = value is {Length: > 0} ? value : new[] {" ", "\t"}; }
+            set
+            {
+                _delimiters = value is {Length: > 0} ? value : new[] {" ", "\t"};
+                _tokenizer = new Tokenizer(_delimiters);
+            }
         }
 
         public HashSet<string> FalseArgs => _numParser.FalseArgs;
@@ -100,13 +104,13 @@
                     NextSafeLine();
                 }
 
-                while (_curLetter < _tokens.Length && _tokens[_curLetter] == -1)
+                while (_curLetter < _tokens.Length - 1 && _tokens[_curLetter] == -1)
                 {
                     _curLetter++;
                 }
 
                 int first = _curLetter, len = 0;
-                if (_curLetter == _tokens.Length)
+                if (_curLetter == _tokens.Length - 1)
                 {
                     _index = 0;
                     continue;
@@ -114,13 +118,13 @@
 
                 _index = _tokens[_curLetter];
 
-                while (first + len < _tokens.Length && _tokens[first + len] != -1 && _tokens[first + len] == _index)
+                while (first + len < _tokens.Length - 1 && _tokens[first + len] != -1 && _tokens[first + len] == _index)
                 {
                     len++;
                 }
 
                 _curLetter = first + len;
-                if (_curLetter == _tokens.Length) _index++;
+                _index++;
                 return _raw.Substring(first, len);
             }
         }
@@ -182,8 +186,8 @@
                     NextSafeLine();
                 }
 
-                while (_curLetter < _tokens.Length && _tokens[_curLetter] == -1) _curLetter++;
-                if (_curLetter == _tokens.Length)
+                while (_curLetter < _tokens.Length - 1 && _tokens[_curLetter] == -1) _curLetter++;
+                if (_curLetter == _tokens.Length - 1)
                 {
                     _index = 0;
                     continue;
