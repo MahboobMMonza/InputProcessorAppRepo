@@ -32,7 +32,7 @@
             // This is a preview of NextSafeLine(), which trims all instances of the given delimiters from the beginning
             // and end of each line
             Console.WriteLine("--------------------Third line--------------------");
-            Console.WriteLine("NextSafeLine(): " + ip.NextSafeLine());
+            Console.WriteLine("NextSafeLine(): " + ip.NextTrimmedLine());
             
             Console.WriteLine("--------------------Fourth line--------------------");
             ip.Indices = 6;
