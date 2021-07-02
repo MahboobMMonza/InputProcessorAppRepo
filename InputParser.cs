@@ -137,7 +137,7 @@
         }
 
         // Next Filtered Line: "Hi how are you doing" -> "Hihowareyoudoing"
-        // This is an extension to the split line string GetNextLineArray stuff
+        // This is an extension idea to the split line string GetNextLineArray stuff
         public string NextSafeLine()
         {
             if (!HasMoreTokens() || string.IsNullOrEmpty(_raw))
@@ -149,13 +149,18 @@
                 } while (!HasMoreTokens());
 
                 _index = 0;
-                return _raw;
             }
-
-            while (_tokens[_curLetter] == -1) _curLetter++;
-
+            
+            var last = _tokens.Length - 1;
+            while (_tokens[_curLetter] == -1 || _tokens[last] == -1)
+            {
+                if (_tokens[_curLetter] == -1) _curLetter++;
+                if (_tokens[last] == -1) last--;
+            }
+            
             _index = 0;
-            return _raw[_curLetter..];
+            if (_curLetter == 0 && last == _tokens.Length - 1) return _raw;
+            return _raw.Substring(_curLetter, last - _curLetter + 1);
         }
 
         private string ReadLine() => _reader.ReadLine();
@@ -205,11 +210,11 @@
 
         public short NextShort(int radix = 10) => _numParser.ParseShort(Next(), radix);
 
-        public int NextSigned32Bit() => _numParser.ParseSigned32Bit(Next());
+        // public int NextSigned32Bit() => _numParser.ParseSigned32Bit(Next());
         
         public uint NextUnsigned32Bit() => _numParser.ParseUnsigned32Bit(Next());
 
-        public long NextSigned64Bit() => _numParser.ParseSigned64Bit(Next());
+        // public long NextSigned64Bit() => _numParser.ParseSigned64Bit(Next());
 
         public ulong NextUnsigned64Bit() => _numParser.ParseUnsigned64Bit(Next());
         

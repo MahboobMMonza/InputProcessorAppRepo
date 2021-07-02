@@ -47,19 +47,19 @@
 
         private void CreateIndices(ref int[] tokens, ref int maxIndices, ref int wordCount)
         {
-            int idx = 0, e = tokens.Length - 1;
+            int idx = 0, last = tokens.Length - 1;
             var neg = 0;
-            if (tokens[e] > 0)
+            if (tokens[last] > 0)
             {
-                var trimEnd = tokens[e];
+                var trimEnd = tokens[last];
                 while (trimEnd > 0)
                 {
-                    trimEnd += tokens[--e];
+                    trimEnd += tokens[--last];
                 }
             }
             if (_emptyDelim)
             {
-                for (var i = 0; i <= e; i++)
+                for (var i = 0; i <= last; i++)
                 {
                     if (maxIndices == -1 || idx < maxIndices)
                     {
@@ -85,7 +85,7 @@
             }
             else
             {
-                for (var i = 0; i <= e; i++)
+                for (var i = 0; i <= last; i++)
                 {
                     if (maxIndices == -1 || idx < maxIndices)
                     {
@@ -108,7 +108,13 @@
                 
             }
 
+            for (var i = last + 1; i < tokens.Length; i++)
+            {
+                tokens[i] = -1;
+            }
+            
             if (idx == 0) tokens = Array.Empty<int>();
+            
             wordCount = idx;
         }
 
@@ -136,7 +142,7 @@
                         {
                             tokens[i - j] -= _patterns[idx].Length;
                             tokens[i] += _patterns[idx].Length;
-                            
+
                             j = _lpsTables[idx][j - 1];
                         }
                         else if (i < line.Length && line[i] != _patterns[idx][j])

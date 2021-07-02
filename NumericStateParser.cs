@@ -1,9 +1,12 @@
-﻿namespace InputProcessorApp
+﻿// TODO: find a better way to parse instead of calling for O(n) substring and fix unsigned
+// TODO: allow for some compatibility with FormatStyles enums and stuff from MS
+// TODO: deide what to do with parse signed integer values
+namespace InputProcessorApp
 {
     using System.Text.RegularExpressions;
     using System;
     using System.Collections.Generic;
-
+    using System.Numerics;
     /// <summary>
     /// Parses strings into other primitive data types, and allows for certain formats such as
     /// binary and hexadecimal prefixes, as well as scientific notation. When parsing strings into booleans,
@@ -19,6 +22,8 @@
         }
 
         private FormatStyle _style;
+
+        private const RegexOptions Options = RegexOptions.CultureInvariant | RegexOptions.IgnoreCase;
 
         public FormatStyle Style
         {
@@ -130,26 +135,29 @@
             FalseArgs.UnionWith(FixedFalseArgs);
         }
 
-        private static int CharVal(char c)
+        private static int CharVal(char c, bool hex = false)
         {
             if (c is (< '0' or > '9') and (< 'A' or > 'Z') and (< 'a' or > 'z')) return -1;
             return c switch
             {
                 <= '9' => c - '0',
                 <= 'Z' => 10 + (c - 'A'),
-                _ => 36 + (c - 'a')
+                _ => hex? 10 + (c - 'a') : 36 + (c - 'a')
             };
         }
 
-        public int ParseSigned32Bit(string parse)
+        /*
+         * To be decided what is to be done with this
+         */
+        /*public int ParseSigned32Bit(string parse)
         {
             int ret = 0, pow = 0;
-            if (Regex.IsMatch(parse, "^0[xX]."))
+            if (Regex.IsMatch(parse, "^-?0[xX][_,. ][\\da-fA-F]+?"))
             {
-                return ParseInt(parse[2..].ToUpperInvariant(), 16);
+                return ParseInt(parse, 16);
             }
 
-            if (Regex.IsMatch(parse, "^0[bB].?[01]+")) parse = parse[2..];
+            if (Regex.IsMatch(parse, "^-?0[bB][_,. ]?[01].+?")) return ParseInt(parse, 2);
 
             for (var i = 0; i < parse.Length; i++)
             {
@@ -160,18 +168,20 @@
                 {
                     throw new ArgumentException($"The given number is illegal: \'{parse}\' at index {i}.");
                 }
-
-                if (pow > 32)
-                    throw new ArgumentException("The binary string must be 32 bits long or be written in " +
-                                                "hexadecimal format.", nameof(parse));
+                
                 ret <<= 1;
                 ret |= c - '0';
             }
-
+            if (pow != 32)
+                throw new ArgumentException("The binary string must be 32 bits long or be written in " +
+                                            "hexadecimal format.", nameof(parse));
             return ret;
-        }
+        }*/
 
-        public long ParseSigned64Bit(string parse)
+        /**
+         * To be decided what is to be done with this
+         */
+        /*public long ParseSigned64Bit(string parse)
         {
             long ret = 0, pow = 0;
             if (Regex.IsMatch(parse, "^0[xX]."))
@@ -188,7 +198,8 @@
                 else if (_formatChars.Contains(c)) continue;
                 else
                 {
-                    throw new ArgumentException($"The given number is illegal: \'{parse}\' at index {i}.", nameof(parse));
+                    throw new ArgumentException($"The given number is illegal: \'{parse}\' at index {i}.",
+                        nameof(parse));
                 }
 
                 if (pow > 64)
@@ -199,75 +210,11 @@
             }
 
             return ret;
-        }
+        }*/
 
-        public uint ParseUnsigned32Bit(string parse)
-        {
-            uint ret = 0, pow = 0;
-            if (parse[0] == '-')
-                throw new ArgumentException(
-                    "The given number is illegal: \'{parse}\' at index 0 because unsigned integers cannot be negative.",
-                    nameof(parse));
-            if (Regex.IsMatch(parse, "^0[xX]."))
-            {
-                ret = (uint) ParseInt(parse[2..].ToUpperInvariant(), 16);
-            }
-
-            if (Regex.IsMatch(parse, "^0[bB].?[01]+")) parse = parse[2..];
-
-            for (var i = 0; i < parse.Length; i++)
-            {
-                var c = parse[i];
-                if (c is '0' or '1') pow++;
-                else if (_formatChars.Contains(c)) continue;
-                else
-                {
-                    throw new ArgumentException($"The given number is illegal: \'{parse}\' at index {i}.", nameof(parse));
-                }
-
-                if (pow > 32)
-                    throw new ArgumentException("The binary string must be 32 bits long or be written in " +
-                                                "hexadecimal format.", nameof(parse));
-                ret <<= 1;
-                ret |= (uint) c - '0';
-            }
-
-            return ret;
-        }
-
-        public ulong ParseUnsigned64Bit(string parse)
-        {
-            ulong ret = 0, pow = 0;
-            if (parse[0] == '-')
-                throw new ArgumentException(
-                    "The given number is illegal: \'{parse}\' at index 0 because unsigned integers cannot be negative.",
-                    nameof(parse));
-            if (Regex.IsMatch(parse, "^0[xX]."))
-            {
-                ret = (ulong) ParseLong(parse[2..].ToUpperInvariant(), 16);
-            }
-
-            if (Regex.IsMatch(parse, "^0[bB].?[01]+")) parse = parse[2..];
-
-            for (var i = 0; i < parse.Length; i++)
-            {
-                var c = parse[i];
-                if (c is '0' or '1') pow++;
-                else if (_formatChars.Contains(c)) continue;
-                else
-                {
-                    throw new ArgumentException($"The given number is illegal: \'{parse}\' at index {i}.", nameof(parse));
-                }
-
-                if (pow > 64)
-                    throw new ArgumentException("The binary string must be 32 bits long or be written in " +
-                                                "hexadecimal format.", nameof(parse));
-                ret <<= 1;
-                ret |= (uint) c - '0';
-            }
-
-            return ret;
-        }
+        public uint ParseUnsigned32Bit(string parse, int radix = 10) => (uint) ParseInt(parse, radix);
+        
+        public ulong ParseUnsigned64Bit(string parse, int radix = 10) => (ulong) ParseLong(parse, radix);
 
         public short ParseShort(string parse, int radix) => (short) ParseInt(parse, radix);
 
@@ -281,28 +228,34 @@
                     "The given base is invalid. Bases must be between 1 and 62.");
             }
 
-            var ret = 0;
-            var negative = parse[0] == '-';
-            if (negative) parse = parse[1..];
-            if (Regex.IsMatch(parse, "^0[xX].") && radix is 10 or 16 or 2)
+            long ret = 0;
+            var idx = 0;
+            bool negative = parse[idx] == '-', hex = false;
+            StringPreprocess(parse, ref negative, ref hex, ref radix, ref idx);
+            
+            for (; idx < parse.Length; idx++)
             {
-                radix = 16;
-                parse = parse[2..].ToUpperInvariant();
-            }
-            else if (Regex.IsMatch(parse, "^0[bB].?[01]") && radix is 10 or 2 or 16)
-            {
-                radix = 2;
-                parse = parse[2..];
-            }
+                var ch = parse[idx];
+                if (_formatChars.Contains(ch)) continue;
+                switch (radix)
+                {
+                    case 2:
+                        ret <<= 1;
+                        break;
+                    case 16:
+                        ret <<= 4;
+                        break;
+                    default:
+                        ret *= radix;
+                        break;
+                }
 
-            for (var i = 0; i < parse.Length; i++)
-            {
-                ret *= radix;
-                var val = CharVal(parse[i]);
-                if ((!_formatChars.Contains(parse[i]) && val == -1) || (val > radix && radix != 1) ||
+                var val = CharVal(ch, hex);
+                if ((!_formatChars.Contains(ch) && val == -1) || (val > radix && radix != 1) ||
                     (radix == 1 && val != 1))
                 {
-                    throw new ArgumentException($"The given number is illegal: \'{parse}\' at index {i}.", nameof(parse));
+                    throw new ArgumentException($"The given number is illegal: \'{parse}\' at index {idx}.",
+                        nameof(parse));
                 }
 
                 ret += val;
@@ -314,6 +267,7 @@
         public double ParseDouble(string parse, int radix)
         {
             if (parse.Equals("NaN")) return double.NaN;
+
             if (radix is < 1 or > 62)
             {
                 throw new ArgumentOutOfRangeException(nameof(radix),
@@ -321,40 +275,41 @@
             }
 
             double ret = 0, div = 1;
-            bool negative = parse[0] == '-', dec = false;
-            if (negative) parse = parse[1..];
-            if (Regex.IsMatch(parse, "^0[xX].") && radix is 10 or 16 or 2)
-            {
-                radix = 16;
-                parse = parse[2..].ToUpperInvariant();
-            }
-            else if (Regex.IsMatch(parse, "^0[bB].?[01]") && radix is 10 or 2 or 16)
-            {
-                radix = 2;
-                parse = parse[2..];
-            }
+            var idx = 0;
+            bool negative = parse[0] == '-', dec = false, hex = false;
+            StringPreprocess(parse, ref negative, ref hex, ref radix, ref idx);
 
-            for (var i = 0; i < parse.Length; i++)
+            var infinite = Regex.IsMatch(parse, @"^-?\\inf(inity)?$", Options);
+            if (infinite) {
+                return negative ? double.NegativeInfinity : double.PositiveInfinity;
+            }
+            for (; idx < parse.Length; idx++)
             {
-                if (_decimalChars.Contains(parse[i]) && !dec)
+                var ch = parse[idx];
+                if (_formatChars.Contains(ch)) continue;
+                
+                if (_decimalChars.Contains(ch) && !dec)
                 {
                     dec = true;
                     continue;
                 }
 
-                if (radix == 10 && (parse[i] == 'e' || parse[i] == 'E'))
+                if (radix == 10 && (ch is 'e' or 'E'))
                 {
-                    ret *= parse[i + 1] == '-'
-                        ? 1d / DoublePow(ParseInt(parse[(i + 2)..], 10))
-                        : DoublePow(ParseInt(parse[(i + 1)..], 10));
+                    ret *= parse[idx + 1] == '-'
+                        ? 1d / DoublePow(ParseInt(parse[(idx + 2)..], 10))
+                        : DoublePow(ParseInt(parse[(idx + 1)..], 10));
                     return negative ? -ret : ret;
                 }
 
-                var val = CharVal(parse[i]);
-                if ((!_formatChars.Contains(parse[i]) && val == -1) || (val > radix && radix != 1) ||
+                var val = CharVal(ch, hex);
+
+
+                if ((!_formatChars.Contains(ch) && val == -1) || (val > radix && radix != 1) ||
                     (radix == 1 && val != 1))
                 {
-                    throw new ArgumentException($"The given number is illegal: {parse} at index {i}.", nameof(parse));
+                    throw new ArgumentException($"The given number is illegal: {parse} at index {idx}.", 
+                        nameof(parse));
                 }
 
                 if (dec)
@@ -368,6 +323,23 @@
             }
 
             return negative ? -ret : ret;
+        }
+
+        private static void StringPreprocess(string parse, ref bool negative, ref bool hex, ref int radix,
+            ref int index)
+        {
+            if (negative) index++;
+            if (Regex.IsMatch(parse, @"^-?0x[._, ]?[\da-f]+?", Options) && radix is 10 or 16 or 2)
+            {
+                hex = true;
+                radix = 16;
+                index += 2;
+            }
+            else if (Regex.IsMatch(parse, @"^-?0b[_,. ]?[01].+?", Options) && radix is 10 or 2 or 16)
+            {
+                radix = 2;
+                index += 2;
+            }
         }
 
         public float ParseFloat(string parse, int radix) => (float) ParseDouble(parse, radix);
@@ -381,40 +353,36 @@
             }
 
             decimal ret = 0, div = 1;
-            bool negative = parse[0] == '-', dec = false;
-            if (negative) parse = parse[1..];
-            if (Regex.IsMatch(parse, "^0[xX].") && radix is 10 or 16 or 2)
+            var idx = 0;
+            bool negative = parse[0] == '-', dec = false, hex = false;
+            StringPreprocess(parse, ref negative, ref hex, ref radix, ref idx);
+            
+            for (; idx < parse.Length; idx++)
             {
-                radix = 16;
-                parse = parse[2..].ToUpperInvariant();
-            }
-            else if (Regex.IsMatch(parse, "^0[bB].?[01]") && radix is 10 or 2 or 16)
-            {
-                radix = 2;
-                parse = parse[2..];
-            }
-
-            for (var i = 0; i < parse.Length; i++)
-            {
-                if (_decimalChars.Contains(parse[i]) && !dec)
+                var ch = parse[idx];
+                if (_formatChars.Contains(ch)) continue;
+                
+                if (_decimalChars.Contains(ch) && !dec)
                 {
                     dec = true;
                     continue;
                 }
 
-                if (radix == 10 && (parse[i] == 'e' || parse[i] == 'E'))
+                if (radix == 10 && (ch is 'e' or 'E'))
                 {
-                    ret *= parse[i + 1] == '-'
-                        ? decimal.One / DecPow(ParseInt(parse[(i + 2)..], 10))
-                        : DecPow(ParseInt(parse[(i + 1)..], 10));
+                    ret *= parse[idx + 1] == '-'
+                        ? decimal.One / DecPow(ParseInt(parse[(idx + 2)..], 10))
+                        : DecPow(ParseInt(parse[(idx + 1)..], 10));
                     return negative ? -ret : ret;
                 }
 
-                var val = CharVal(parse[i]);
-                if ((!_formatChars.Contains(parse[i]) && val == -1) || (val > radix && radix != 1) ||
+                var val = CharVal(ch, hex);
+
+                if ((!_formatChars.Contains(ch) && val == -1) || (val > radix && radix != 1) ||
                     (radix == 1 && val != 1))
                 {
-                    throw new ArgumentException($"The given number is illegal: \'{parse}\' at index {i}.", nameof(parse));
+                    throw new ArgumentException($"The given number is illegal: {parse} at index {idx}.", 
+                        nameof(parse));
                 }
 
                 if (dec)
@@ -426,11 +394,15 @@
                     ret = (ret * radix) + val;
                 }
             }
-
+            
             return negative ? -ret : ret;
         }
 
-        public bool TryParseSigned32Bit(string parse, out int result)
+
+        /*
+         * Contingent on ParseSigned32Bit
+         */
+        /*public bool TryParseSigned32Bit(string parse, out int result)
         {
             try
             {
@@ -443,9 +415,12 @@
             }
 
             return true;
-        }
+        }*/
 
-        public bool TryParseSigned64Bit(string parse, out long result)
+        /*
+         * Contingent on ParseSigned64Bit
+         */
+        /*public bool TryParseSigned64Bit(string parse, out long result)
         {
             try
             {
@@ -458,7 +433,7 @@
             }
 
             return true;
-        }
+        }*/
 
         public bool TryParseUnsigned32Bit(string parse, out uint result)
         {

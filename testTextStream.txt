@@ -1,0 +1,9 @@
+This is some sample text to demonstrate how the application works. Each word here will be printed separately.
+This is ree a demo test to see another splitter    how the program reacts to testtestestesttest splitting words by the other delimiters that were set.
+another splitterThe previous line skipped over any instances of strings that matched the delimiters which ip was initialized with and printed the rest of the words in separate lines. This line was trimmed from the same set of words too.ree  testestest another splitter
+This line should another splitter bereetestbroken up into 6 sections.
+This another splitter testest line should be unchanged and we will now test the program's capability to read number types.
+235
+123456789 123_456_789ree-123_456_789another splitter-0xff 123.456reeNaNtest\inf -\INFINITY
+-47_871_085_561_486_217ree1_097_752_410_090_582test0b0110_0100_1001_0011 KB3VEA4VC0
+true false yes no ree 0 1 ree test t f y n T F Y N TRUE FALSE tRuE FAlse yEs nO
