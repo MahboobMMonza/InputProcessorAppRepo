@@ -31,14 +31,14 @@ string in any base until base62.
 - Handle consecutive connected matches
   - If a delimiter was "test" and the given string had "testestimate",
   normally the program would match at index 0 and again at index 3,
-    returning only "imate" in the Next() call.
+    returning only "imate" in the *Next()* call.
     
   - Allow an option for the user to determine whether or not to continue
   from partial matches after a word has ended or restart the search from
     the beginning.
 - Allow the user an option to escape pattern instances using '\\'.
-- Allow for going to different lines in text files (jump to nth line).
-- Implement ArrayMaker class.
+- Allow for going to different lines in text files (jump to *nth* line).
+- Implement **ArrayMaker** class.
 - Implement Aho-Corasick algorithm for string matching.
   - Adjust for consecutive match options during a fallback at the end
   of a match.
