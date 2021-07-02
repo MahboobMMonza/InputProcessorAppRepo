@@ -11,9 +11,9 @@ This application was developed entirely using C#.
 - String
 - Character
 - Boolean
-- Short (16-bit)
-- Integer (32-bit)
-- Long Integer (64-bit)
+- Short (Int16)
+- Integer (Int32)
+- Long Integer (Int64)
 - Float
 - Double
 - Decimal
