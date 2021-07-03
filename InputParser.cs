@@ -1,4 +1,8 @@
-﻿namespace InputProcessorApp
+﻿// TODO: Optimize with ReadOnlySpan<char>
+// TODO: Account for escape characters
+// TODO: Minimize allocations
+
+namespace InputProcessorApp
 {
     using System;
     using System.IO;
