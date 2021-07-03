@@ -180,7 +180,7 @@
             }
         }
 
-        // Precomputes a fallback table for the current pattern in case of a mismatch.
+        // Precomputes a fallback table for the current pattern.
         private static int[] Precompute(string pattern)
         {
             var lps = new int[pattern.Length];
