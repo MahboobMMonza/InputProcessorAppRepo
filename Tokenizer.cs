@@ -4,11 +4,19 @@
     using System.Linq;
     using System.Collections.Generic;
 
-    // TODO: Optimization to token assignment
-    // TODO: Make tokenization for string list with single call instead of multiple calls for each string
-    // i.e. make i[] and j[]
+    // TODO: Optimization to token assignment using Aho-Corasick algorithm
+    
+    /// <summary>
+    /// Class <c>Tokenizer</c> determines all split groups possible given the delimiters and the maximum number of
+    /// groups.
+    /// </summary>
+    /// <remarks>Implements KMP algorithm (unoptimized for real time) for each search.</remarks>
     public class Tokenizer
     {
+        /// <summary>
+        /// Constructor for <see cref="Tokenizer"/> with a given collection of string delimiters.
+        /// </summary>
+        /// <param name="delimiters">Collection of string delimiters to split by.</param>
         public Tokenizer(IEnumerable<string> delimiters)
         {
             _lpsTables = new List<int[]>();
@@ -31,6 +39,13 @@
 
         private bool _emptyDelim;
 
+        /// <summary>
+        /// Creates an array with coded integer indicators of each valid and invalid sequence of characters in the line.
+        /// </summary>
+        /// <param name="line">The current line to tokenize.</param>
+        /// <param name="maxIndices">The maximum number of token groups to create.</param>
+        /// <param name="wordCount">The index of the last token group. This value is always overwritten.</param>
+        /// <returns>An encoded <see cref="int"/> array.</returns>
         public IEnumerable<int> Tokenize(string line, ref int maxIndices,
             ref int wordCount)
         {
@@ -45,6 +60,7 @@
             return tokens;
         }
 
+        // Encodes the index of each group, and denotes split sequences with -1.
         private void CreateIndices(ref int[] tokens, ref int maxIndices, ref int wordCount)
         {
             int idx = 0, last = tokens.Length - 1;
@@ -118,6 +134,7 @@
             wordCount = idx;
         }
 
+        // Searches for all matches of the current given pattern in the line.
         private void AssignTokens(string line, ref int idx, ref int[] tokens)
         {
             if (line.Length < _patterns[idx].Length) return;
@@ -163,6 +180,7 @@
             }
         }
 
+        // Precomputes a fallback table for the current pattern in case of a mismatch.
         private static int[] Precompute(string pattern)
         {
             var lps = new int[pattern.Length];
