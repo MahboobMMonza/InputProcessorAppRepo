@@ -1,19 +1,21 @@
-﻿// TODO: find a better way to parse instead of calling for O(n) substring and fix unsigned
-// TODO: allow for some compatibility with FormatStyles enums and stuff from MS
-// TODO: deide what to do with parse signed integer values
+﻿// TODO: allow for some compatibility with FormatStyles enums and stuff from MS
+// TODO: decide what to do with parse signed integer values
+
 namespace InputProcessorApp
 {
     using System.Text.RegularExpressions;
     using System;
     using System.Collections.Generic;
-    using System.Numerics;
+
     /// <summary>
-    /// Parses strings into other primitive data types, and allows for certain formats such as
-    /// binary and hexadecimal prefixes, as well as scientific notation. When parsing strings into booleans,
-    /// custom states for strings can be added.
+    /// Class <c>NumericStateParser</c> parses strings into primitive data types.
     /// </summary>
+    /// <remarks>Can parse up to base 62 for numerics, and can parse custom values into <see cref="bool"/>.</remarks>
     public class NumericStateParser
     {
+        /// <summary>
+        /// Determines the separators and decimal characters used by the program.
+        /// </summary>
         public enum FormatStyle
         {
             SIFormat = 0,
@@ -25,6 +27,11 @@ namespace InputProcessorApp
 
         private const RegexOptions Options = RegexOptions.CultureInvariant | RegexOptions.IgnoreCase;
 
+        /// <summary>
+        /// Gets and sets the formatting characters that denote decimal points and place value separators.
+        /// </summary>
+        /// <remarks>Default style set to SIFormat. When using separators,
+        /// do not use two separators consecutively.</remarks>
         public FormatStyle Style
         {
             get => _style;
@@ -142,7 +149,7 @@ namespace InputProcessorApp
             {
                 <= '9' => c - '0',
                 <= 'Z' => 10 + (c - 'A'),
-                _ => hex? 10 + (c - 'a') : 36 + (c - 'a')
+                _ => hex ? 10 + (c - 'a') : 36 + (c - 'a')
             };
         }
 
@@ -178,7 +185,7 @@ namespace InputProcessorApp
             return ret;
         }*/
 
-        /**
+        /*
          * To be decided what is to be done with this
          */
         /*public long ParseSigned64Bit(string parse)
@@ -211,15 +218,45 @@ namespace InputProcessorApp
 
             return ret;
         }*/
-
-        public uint ParseUnsigned32Bit(string parse, int radix = 10) => (uint) ParseInt(parse, radix);
         
+        /// <summary>
+        /// Parses the given string as a <c>uint</c>.
+        /// </summary>
+        /// <param name="parse">The string to parse.</param>
+        /// <param name="radix">The base to parse in. Default is base 10.</param>
+        /// <returns>The string parsed as <see cref="uint"/>.</returns>
+        public uint ParseUnsigned32Bit(string parse, int radix = 10) => (uint) ParseInt(parse, radix);
+
+        /// <summary>
+        /// Parses the given string as a <c>ulong</c>.
+        /// </summary>
+        /// <param name="parse">The string to parse.</param>
+        /// <param name="radix">The base to parse in. Default is base 10.</param>
+        /// <returns>The string parsed as <see cref="ulong"/>.</returns>
         public ulong ParseUnsigned64Bit(string parse, int radix = 10) => (ulong) ParseLong(parse, radix);
 
+        /// <summary>
+        /// Parses the given string as a <c>short</c>.
+        /// </summary>
+        /// <param name="parse">The string to parse.</param>
+        /// <param name="radix">The base to parse in. Default is base 10.</param>
+        /// <returns>The string parsed as <see cref="short"/>.</returns>
         public short ParseShort(string parse, int radix) => (short) ParseInt(parse, radix);
 
+        /// <summary>
+        /// Parses the given string as a <c>int</c>.
+        /// </summary>
+        /// <param name="parse">The string to parse.</param>
+        /// <param name="radix">The base to parse in. Default is base 10.</param>
+        /// <returns>The string parsed as <see cref="int"/>.</returns>
         public int ParseInt(string parse, int radix) => (int) ParseLong(parse, radix);
 
+        /// <summary>
+        /// Parses the given string as a <c>long</c>.
+        /// </summary>
+        /// <param name="parse">The string to parse.</param>
+        /// <param name="radix">The base to parse in. Default is base 10.</param>
+        /// <returns>The string parsed as <see cref="long"/>.</returns>
         public long ParseLong(string parse, int radix)
         {
             if (radix is < 1 or > 62)
@@ -230,13 +267,25 @@ namespace InputProcessorApp
 
             long ret = 0;
             var idx = 0;
-            bool negative = parse[idx] == '-', hex = false;
-            StringPreprocess(parse, ref negative, ref hex, ref radix, ref idx);
-            
+            bool negative = parse[idx] == '-', hex = false, format = false;
+            Preprocess(parse, ref negative, ref hex, ref radix, ref idx);
+
             for (; idx < parse.Length; idx++)
             {
                 var ch = parse[idx];
-                if (_formatChars.Contains(ch)) continue;
+                if (_formatChars.Contains(ch))
+                {
+                    if (format)
+                    {
+                        throw new ArgumentException($"The given value is illegal: \'{parse}\' at index {idx}." +
+                                                    "You cannot have consecutive separator characters.", nameof(parse));
+                    }
+
+                    format = true;
+                    continue;
+                }
+
+                format = false;
                 switch (radix)
                 {
                     case 2:
@@ -264,6 +313,12 @@ namespace InputProcessorApp
             return negative ? -ret : ret;
         }
 
+        /// <summary>
+        /// Parses the given string as a <c>double</c>.
+        /// </summary>
+        /// <param name="parse">The string to parse.</param>
+        /// <param name="radix">The base to parse in. Default is base 10.</param>
+        /// <returns>The string parsed as <see cref="double"/>.</returns>
         public double ParseDouble(string parse, int radix)
         {
             if (parse.Equals("NaN")) return double.NaN;
@@ -276,18 +331,31 @@ namespace InputProcessorApp
 
             double ret = 0, div = 1;
             var idx = 0;
-            bool negative = parse[0] == '-', dec = false, hex = false;
-            StringPreprocess(parse, ref negative, ref hex, ref radix, ref idx);
+            bool negative = parse[0] == '-', dec = false, hex = false, format = false;
+            Preprocess(parse, ref negative, ref hex, ref radix, ref idx);
 
             var infinite = Regex.IsMatch(parse, @"^-?\\inf(inity)?$", Options);
-            if (infinite) {
+            if (infinite)
+            {
                 return negative ? double.NegativeInfinity : double.PositiveInfinity;
             }
+
             for (; idx < parse.Length; idx++)
             {
                 var ch = parse[idx];
-                if (_formatChars.Contains(ch)) continue;
-                
+                if (_formatChars.Contains(ch))
+                {
+                    if (format)
+                    {
+                        throw new ArgumentException($"The given value is illegal: \'{parse}\' at index {idx}." +
+                                                    "You cannot have consecutive separator characters.", nameof(parse));
+                    }
+
+                    format = true;
+                    continue;
+                }
+
+                format = false;
                 if (_decimalChars.Contains(ch) && !dec)
                 {
                     dec = true;
@@ -308,7 +376,7 @@ namespace InputProcessorApp
                 if ((!_formatChars.Contains(ch) && val == -1) || (val > radix && radix != 1) ||
                     (radix == 1 && val != 1))
                 {
-                    throw new ArgumentException($"The given number is illegal: {parse} at index {idx}.", 
+                    throw new ArgumentException($"The given number is illegal: {parse} at index {idx}.",
                         nameof(parse));
                 }
 
@@ -325,7 +393,7 @@ namespace InputProcessorApp
             return negative ? -ret : ret;
         }
 
-        private static void StringPreprocess(string parse, ref bool negative, ref bool hex, ref int radix,
+        private static void Preprocess(string parse, ref bool negative, ref bool hex, ref int radix,
             ref int index)
         {
             if (negative) index++;
@@ -342,8 +410,20 @@ namespace InputProcessorApp
             }
         }
 
+        /// <summary>
+        /// Parses the given string as a <c>float</c>.
+        /// </summary>
+        /// <param name="parse">The string to parse.</param>
+        /// <param name="radix">The base to parse in. Default is base 10.</param>
+        /// <returns>The string parsed as <see cref="float"/>.</returns>
         public float ParseFloat(string parse, int radix) => (float) ParseDouble(parse, radix);
 
+        /// <summary>
+        /// Parses the given string as a <c>decimal</c>.
+        /// </summary>
+        /// <param name="parse">The string to parse.</param>
+        /// <param name="radix">The base to parse in. Default is base 10.</param>
+        /// <returns>The string parsed as <see cref="decimal"/>.</returns>
         public decimal ParseDecimal(string parse, int radix)
         {
             if (radix is < 1 or > 62)
@@ -354,14 +434,25 @@ namespace InputProcessorApp
 
             decimal ret = 0, div = 1;
             var idx = 0;
-            bool negative = parse[0] == '-', dec = false, hex = false;
-            StringPreprocess(parse, ref negative, ref hex, ref radix, ref idx);
-            
+            bool negative = parse[0] == '-', dec = false, hex = false, format = false;
+            Preprocess(parse, ref negative, ref hex, ref radix, ref idx);
+
             for (; idx < parse.Length; idx++)
             {
                 var ch = parse[idx];
-                if (_formatChars.Contains(ch)) continue;
-                
+                if (_formatChars.Contains(ch))
+                {
+                    if (format)
+                    {
+                        throw new ArgumentException($"The given value is illegal: \'{parse}\' at index {idx}." +
+                                                    "You cannot have consecutive separator characters.", nameof(parse));
+                    }
+
+                    format = true;
+                    continue;
+                }
+
+                format = false;
                 if (_decimalChars.Contains(ch) && !dec)
                 {
                     dec = true;
@@ -381,7 +472,7 @@ namespace InputProcessorApp
                 if ((!_formatChars.Contains(ch) && val == -1) || (val > radix && radix != 1) ||
                     (radix == 1 && val != 1))
                 {
-                    throw new ArgumentException($"The given number is illegal: {parse} at index {idx}.", 
+                    throw new ArgumentException($"The given number is illegal: {parse} at index {idx}.",
                         nameof(parse));
                 }
 
@@ -394,7 +485,7 @@ namespace InputProcessorApp
                     ret = (ret * radix) + val;
                 }
             }
-            
+
             return negative ? -ret : ret;
         }
 
@@ -435,6 +526,12 @@ namespace InputProcessorApp
             return true;
         }*/
 
+        /// <summary>
+        /// Parses the given string as <c>uint</c>. Returns a boolean indicating if the conversion succeeded.
+        /// </summary>
+        /// <param name="parse">The string to parse.</param>
+        /// <param name="result">The attempted parse value, as a <see cref="UInt32"/>.</param>
+        /// <returns><c>true</c> if the parse succeeded; otherwise <c>false</c>.</returns>
         public bool TryParseUnsigned32Bit(string parse, out uint result)
         {
             try
@@ -450,11 +547,18 @@ namespace InputProcessorApp
             return true;
         }
 
-        public bool TryParseUnsigned64Bit(string parse, out ulong result)
+        /// <summary>
+        /// Parses the given string as <c>ulong</c>. Returns a boolean indicating if the conversion succeeded.
+        /// </summary>
+        /// <param name="parse">The string to parse.</param>
+        /// <param name="result">The attempted parse value, as a <see cref="UInt64"/>.</param>
+        /// <param name="radix">The base in which to parse the string by.</param>
+        /// <returns><c>true</c> if the parse succeeded; otherwise <c>false</c>.</returns>
+        public bool TryParseUnsigned64Bit(string parse, int radix, out ulong result)
         {
             try
             {
-                result = ParseUnsigned64Bit(parse);
+                result = ParseUnsigned64Bit(parse, radix);
             }
             catch
             {
@@ -465,6 +569,14 @@ namespace InputProcessorApp
             return true;
         }
 
+        /// <summary>
+        /// Parses a string into a <see cref="bool"/>.
+        /// </summary>
+        /// <param name="state">The string to parse.</param>
+        /// <returns><c>true</c> if the string parses a value that evaluates as true; <c>false</c> if
+        /// the string parses a value that evaluates as false.</returns>
+        /// <exception cref="InvalidOperationException">The string value is not recognized as an argument that
+        /// evaluates to either <c>true</c> or <c>false</c>.</exception>
         public bool ParseBool(string state)
         {
             if (FalseArgs.Contains(state.ToLowerInvariant()))
@@ -480,6 +592,13 @@ namespace InputProcessorApp
             throw new InvalidOperationException($"The given value is illegal: \"{state}\"");
         }
 
+        /// <summary>
+        /// Parses the given string as <c>short</c>. Returns a boolean indicating if the conversion succeeded.
+        /// </summary>
+        /// <param name="parse">The string to parse.</param>
+        /// <param name="radix">The base in which to parse the string by.</param>
+        /// <param name="result">The attempted parse value, as a <see cref="short"/>.</param>
+        /// <returns><c>true</c> if the parse succeeded; otherwise <c>false</c>.</returns>
         public bool TryParseShort(string parse, int radix, out short result)
         {
             try
@@ -495,6 +614,13 @@ namespace InputProcessorApp
             return true;
         }
 
+        /// <summary>
+        /// Parses the given string as <c>int</c>. Returns a boolean indicating if the conversion succeeded.
+        /// </summary>
+        /// <param name="parse">The string to parse.</param>
+        /// <param name="radix">The base in which to parse the string by.</param>
+        /// <param name="result">The attempted parse value, as a <see cref="int"/>.</param>
+        /// <returns><c>true</c> if the parse succeeded; otherwise <c>false</c>.</returns>
         public bool TryParseInt(string parse, int radix, out int result)
         {
             try
@@ -510,6 +636,13 @@ namespace InputProcessorApp
             return true;
         }
 
+        /// <summary>
+        /// Parses the given string as <c>long</c>. Returns a boolean indicating if the conversion succeeded.
+        /// </summary>
+        /// <param name="parse">The string to parse.</param>
+        /// <param name="radix">The base in which to parse the string by.</param>
+        /// <param name="result">The attempted parse value, as a <see cref="long"/>.</param>
+        /// <returns><c>true</c> if the parse succeeded; otherwise <c>false</c>.</returns>
         public bool TryParseLong(string parse, int radix, out long result)
         {
             try
@@ -525,6 +658,13 @@ namespace InputProcessorApp
             return true;
         }
 
+        /// <summary>
+        /// Parses the given string as <c>float</c>. Returns a boolean indicating if the conversion succeeded.
+        /// </summary>
+        /// <param name="parse">The string to parse.</param>
+        /// <param name="radix">The base in which to parse the string by.</param>
+        /// <param name="result">The attempted parse value, as a <see cref="Single"/>.</param>
+        /// <returns><c>true</c> if the parse succeeded; otherwise <c>false</c>.</returns>
         public bool TryParseFloat(string parse, int radix, out float result)
         {
             try
@@ -540,6 +680,13 @@ namespace InputProcessorApp
             return true;
         }
 
+        /// <summary>
+        /// Parses the given string as <c>double</c>. Returns a boolean indicating if the conversion succeeded.
+        /// </summary>
+        /// <param name="parse">The string to parse.</param>
+        /// <param name="radix">The base in which to parse the string by.</param>
+        /// <param name="result">The attempted parse value, as a <see cref="Double"/>.</param>
+        /// <returns><c>true</c> if the parse succeeded; otherwise <c>false</c>.</returns>
         public bool TryParseDouble(string parse, int radix, out double result)
         {
             try
@@ -555,6 +702,13 @@ namespace InputProcessorApp
             return true;
         }
 
+        /// <summary>
+        /// Parses the given string as <c>decimal</c>. Returns a boolean indicating if the conversion succeeded.
+        /// </summary>
+        /// <param name="parse">The string to parse.</param>
+        /// <param name="radix">The base in which to parse the string by.</param>
+        /// <param name="result">The attempted parse value, as a <see cref="Decimal"/>.</param>
+        /// <returns><c>true</c> if the parse succeeded; otherwise <c>false</c>.</returns>
         public bool TryParseDecimal(string parse, int radix, out decimal result)
         {
             try
@@ -570,6 +724,12 @@ namespace InputProcessorApp
             return true;
         }
 
+        /// <summary>
+        /// Parses the given string as <c>bool</c>. Returns a boolean indicating if the conversion succeeded.
+        /// </summary>
+        /// <param name="state">The string to parse.</param>
+        /// <param name="result">The attempted parse value, as a <see cref="bool"/></param>
+        /// <returns><c>true</c> if the parse succeeded; otherwise <c>false</c>.</returns>
         public bool TryParseBool(string state, out bool result)
         {
             try
