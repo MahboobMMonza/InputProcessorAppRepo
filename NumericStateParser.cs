@@ -25,8 +25,12 @@ namespace InputProcessorApp
 
         private FormatStyle _style;
 
-        private const RegexOptions Options = RegexOptions.CultureInvariant | RegexOptions.IgnoreCase;
-
+        private const RegexOptions Options =
+            RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.Compiled;
+        
+        private static readonly Regex HexRegex = new Regex(@"^-?0x[._, ]?[\da-f]+?", Options),
+            BinaryRegex = new Regex(@"^-?0b[_,. ]?[01].+?", Options);
+        
         /// <summary>
         /// Gets and sets the formatting characters that denote decimal points and place value separators.
         /// </summary>
@@ -218,7 +222,7 @@ namespace InputProcessorApp
 
             return ret;
         }*/
-        
+
         /// <summary>
         /// Parses the given string as a <c>uint</c>.
         /// </summary>
@@ -397,13 +401,13 @@ namespace InputProcessorApp
             ref int index)
         {
             if (negative) index++;
-            if (Regex.IsMatch(parse, @"^-?0x[._, ]?[\da-f]+?", Options) && radix is 10 or 16 or 2)
+            if (HexRegex.IsMatch(parse) && radix is 10 or 16 or 2)
             {
                 hex = true;
                 radix = 16;
                 index += 2;
             }
-            else if (Regex.IsMatch(parse, @"^-?0b[_,. ]?[01].+?", Options) && radix is 10 or 2 or 16)
+            else if (BinaryRegex.IsMatch(parse) && radix is 10 or 2 or 16)
             {
                 radix = 2;
                 index += 2;
