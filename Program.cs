@@ -10,7 +10,7 @@
             // Demo code. Read textTextStream.txt to see the samples. Unless specified, sample lines will be
             // broken up by the list of strings given after the stream reader (delimiters)
             var ip = new InputParser(new StreamReader("testTextStream.txt"), 
-                "ree", "test", "another splitter", " ", "\t");
+                "ree", "test", "testing", "another splitter", " ", "\t");
             // Splits line 1 by all the spaces and prints each word on a new line with ip.Next()
             Console.WriteLine($"--------------------First line--------------------");
             
@@ -70,6 +70,24 @@
             {
                 Console.WriteLine($"NextBool(): {ip.NextBool()}");
             } while (ip.HasMoreTokens());
+            
+            // This match will be available once Aho-Corasick algorithm is in place, at which point
+            // Blended or Complete matches can be made
+            /*Console.WriteLine("--------------------Testing Match--------------------");
+            ip.Match = Tokenizer.Match.Complete;
+            do
+            {
+                Console.Write(ip.Next() + " ");
+            } while (ip.HasMoreTokens());
+            Console.WriteLine();*/
+            Console.WriteLine("--------------------NextChar() Test--------------------");
+            // ip.Match = Tokenizer.Match.Blend;
+            do
+            {
+                Console.Write(ip.NextChar() + " and ");
+            } while (ip.HasMoreTokens());
+            
+            Console.WriteLine();
         }
     }
 }

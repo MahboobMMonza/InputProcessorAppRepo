@@ -1,12 +1,14 @@
-﻿// TODO: allow for some compatibility with FormatStyles enums and stuff from MS
-// TODO: decide what to do with parse signed integer values
-
-namespace InputProcessorApp
+﻿namespace InputProcessorApp
 {
     using System.Text.RegularExpressions;
     using System;
     using System.Collections.Generic;
 
+    // TODO: allow for some compatibility with FormatStyles enums and stuff from MS
+    // TODO: Fix double and add float converters
+    // TODO: decide what to do with parse signed integer values
+    // TODO: Create UInt32 and UInt64 parsers
+    
     /// <summary>
     /// Class <c>NumericStateParser</c> parses strings into primitive data types.
     /// </summary>
@@ -27,10 +29,11 @@ namespace InputProcessorApp
 
         private const RegexOptions Options =
             RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.Compiled;
-        
-        private static readonly Regex HexRegex = new Regex(@"^-?0x[._, ]?[\da-f]+?", Options),
-            BinaryRegex = new Regex(@"^-?0b[_,. ]?[01].+?", Options);
-        
+
+        private static readonly Regex HexRegex = new (@"^-?0x[._, ]?[\da-f]+?", Options),
+            BinaryRegex = new (@"^-?0b[_,. ]?[01].+?", Options), Inf = new (@"^-?\\inf(inity)?$", Options),
+            Epsilon = new (@"^-?\\eps(ilon)?$", Options), Nan = new (@"^\\nan$", Options);
+
         /// <summary>
         /// Gets and sets the formatting characters that denote decimal points and place value separators.
         /// </summary>
@@ -271,7 +274,7 @@ namespace InputProcessorApp
 
             long ret = 0;
             var idx = 0;
-            bool negative = parse[idx] == '-', hex = false, format = false;
+            bool negative = parse[idx] == '-', hex = false, format = false, negCheck;
             Preprocess(parse, ref negative, ref hex, ref radix, ref idx);
 
             for (; idx < parse.Length; idx++)
@@ -290,19 +293,16 @@ namespace InputProcessorApp
                 }
 
                 format = false;
-                switch (radix)
-                {
-                    case 2:
-                        ret <<= 1;
-                        break;
-                    case 16:
-                        ret <<= 4;
-                        break;
-                    default:
-                        ret *= radix;
-                        break;
-                }
 
+                negCheck = (long.MinValue & ret) < 0 && negative;
+
+                ret *= radix;
+
+                if ((!negCheck && !negative && (long.MinValue & ret) < 0) || (negCheck && ret >= 0))
+                {
+                    throw new OverflowException($@"The given value is too large for Int64 type: '{parse}'.");
+                }
+                
                 var val = CharVal(ch, hex);
                 if ((!_formatChars.Contains(ch) && val == -1) || (val > radix && radix != 1) ||
                     (radix == 1 && val != 1))
@@ -311,10 +311,15 @@ namespace InputProcessorApp
                         nameof(parse));
                 }
 
-                ret += val;
+                ret += negative ? -val : val;
+                
+                if ((!negCheck && !negative && (long.MinValue & ret) < 0) || (negCheck && ret >= 0))
+                {
+                    throw new OverflowException($@"The given value is too large for Int64 type: '{parse}'.");
+                }
             }
 
-            return negative ? -ret : ret;
+            return ret;
         }
 
         /// <summary>
@@ -325,7 +330,8 @@ namespace InputProcessorApp
         /// <returns>The string parsed as <see cref="double"/>.</returns>
         public double ParseDouble(string parse, int radix)
         {
-            if (parse.Equals("NaN")) return double.NaN;
+            if (Nan.IsMatch(parse))
+                return double.NaN;
 
             if (radix is < 1 or > 62)
             {
@@ -338,10 +344,14 @@ namespace InputProcessorApp
             bool negative = parse[0] == '-', dec = false, hex = false, format = false;
             Preprocess(parse, ref negative, ref hex, ref radix, ref idx);
 
-            var infinite = Regex.IsMatch(parse, @"^-?\\inf(inity)?$", Options);
-            if (infinite)
+            if (Inf.IsMatch(parse))
             {
                 return negative ? double.NegativeInfinity : double.PositiveInfinity;
+            }
+
+            if (Epsilon.IsMatch(parse))
+            {
+                return negative ? -double.Epsilon : double.Epsilon;
             }
 
             for (; idx < parse.Length; idx++)
@@ -400,7 +410,7 @@ namespace InputProcessorApp
         private static void Preprocess(string parse, ref bool negative, ref bool hex, ref int radix,
             ref int index)
         {
-            if (negative) index++;
+            if (negative || parse[0] == '+') index++;
             if (HexRegex.IsMatch(parse) && radix is 10 or 16 or 2)
             {
                 hex = true;

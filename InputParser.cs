@@ -1,13 +1,14 @@
-﻿// TODO: Optimize with ReadOnlySpan<char>
-// TODO: Account for escape characters
-// TODO: Minimize allocations
-
-namespace InputProcessorApp
+﻿namespace InputProcessorApp
 {
     using System;
     using System.IO;
     using System.Collections.Generic;
     using System.Linq;
+
+    // TODO: Error handling for end-of-file -> possibly create another class to interact with and make calls
+    // TODO: Account for escape characters
+    // TODO: Improve changing TextReader
+    // TODO: Optimize with ReadOnlySpan<char> and minimize allocations
 
     /// <summary>
     /// Class <c>InputParser</c> reads text input from a source and splits each line into groups, returning data
@@ -16,7 +17,7 @@ namespace InputProcessorApp
     /// <remarks>Skips over empty lines. Can return data as parsed primitives.</remarks>>
     public class InputParser
     {
-        private readonly NumericStateParser _numParser = new NumericStateParser();
+        private readonly NumericStateParser _numParser = new();
 
         private Tokenizer _tokenizer;
 
@@ -68,10 +69,22 @@ namespace InputProcessorApp
             set
             {
                 _delimiters = value is {Length: > 0} ? value : new[] {" ", "\t"};
-                _tokenizer = new Tokenizer(_delimiters);
+                _tokenizer.Delimiters = _delimiters;
             }
         }
 
+        public Tokenizer.Match Match
+        {
+            get => _tokenizer.PatternMatch;
+            set => _tokenizer.PatternMatch = value;
+        }
+
+        public NumericStateParser.FormatStyle FormatStyle
+        {
+            get => _numParser.Style;
+            set => _numParser.Style = value;
+        }
+        
         /// <summary>
         /// Set of arguments that can be parsed into <see cref="bool"/> as <c>false</c>.
         /// </summary>
@@ -100,10 +113,50 @@ namespace InputProcessorApp
 
         private string _raw;
 
-        private int _index, _wordCount, _maxIndices = -1, _curLetter;
+        private int _index, _wordCount, _maxIndices = -1, _curLetter, _lastLetter;
 
         private TextReader _reader;
 
+        /// <summary>
+        /// Constructor for an <see cref="InputParser"/> class with a specified number of maximum groups per line and
+        /// optionally specified delimiters.
+        /// </summary>
+        /// <param name="input">The input stream to read from. Defaults to standard input stream if none is
+        /// provided.</param>
+        /// <param name="maxIndices">The maximum number of groups formed after splitting a line. Defaults to -1
+        /// if an invalid value is given.</param>
+        /// <param name="match">The matching style to conform to. Blended matching by default.</param>
+        /// <param name="delimiters">The list of string patterns to split lines by.</param>
+        public InputParser(TextReader input = null, int maxIndices = default, Tokenizer.Match match = Tokenizer.Match.Blend, params string[] delimiters)
+        {
+            _tokens = null;
+            _raw = null;
+            Reader = input ?? Console.In;
+            _tokenizer = new Tokenizer(match);
+            Delimiters = delimiters;
+            _index = _curLetter = 0;
+            Indices = maxIndices;
+        }
+
+        /// <summary>
+        /// Constructor for an <see cref="InputParser"/> class with a specified matching style and
+        /// optionally specified delimiters.
+        /// </summary>
+        /// <param name="input">The input stream to read from. Defaults to standard input stream if none is
+        /// provided.</param>
+        /// <param name="match">The matching style to conform to. Blended matching by default.</param>
+        /// <param name="delimiters">The list of string patterns to split lines by.</param>
+        public InputParser(TextReader input = null, Tokenizer.Match match = Tokenizer.Match.Blend, params string[] delimiters)
+        {
+            _tokens = null;
+            _raw = null;
+            Reader = input ?? Console.In;
+            _tokenizer = new Tokenizer(match);
+            Delimiters = delimiters;
+            _index = _curLetter = 0;
+            Indices = -1;
+        }
+        
         /// <summary>
         /// Constructor for an <see cref="InputParser"/> class with a specified number of maximum groups per line and
         /// optionally specified delimiters.
@@ -118,8 +171,8 @@ namespace InputProcessorApp
             _tokens = null;
             _raw = null;
             Reader = input ?? Console.In;
+            _tokenizer = new Tokenizer();
             Delimiters = delimiters;
-            _tokenizer = new Tokenizer(Delimiters);
             _index = _curLetter = 0;
             Indices = maxIndices;
         }
@@ -135,8 +188,8 @@ namespace InputProcessorApp
             _tokens = null;
             _raw = null;
             Reader = input ?? Console.In;
+            _tokenizer = new Tokenizer();
             Delimiters = delimiters;
-            _tokenizer = new Tokenizer(Delimiters);
             _index = _curLetter = 0;
             Indices = -1;
         }
@@ -154,13 +207,13 @@ namespace InputProcessorApp
                     NextTrimmedLine();
                 }
 
-                while (_curLetter < _tokens.Length - 1 && _tokens[_curLetter] == -1)
+                while (_curLetter < _lastLetter && _tokens[_curLetter] == -1)
                 {
                     _curLetter++;
                 }
 
                 int first = _curLetter, len = 0;
-                if (_curLetter == _tokens.Length - 1)
+                if (_curLetter == _lastLetter)
                 {
                     _index = 0;
                     continue;
@@ -168,7 +221,7 @@ namespace InputProcessorApp
 
                 _index = _tokens[_curLetter];
 
-                while (first + len < _tokens.Length - 1 && _tokens[first + len] != -1 && _tokens[first + len] == _index)
+                while (first + len < _lastLetter && _tokens[first + len] != -1 && _tokens[first + len] == _index)
                 {
                     len++;
                 }
@@ -181,7 +234,7 @@ namespace InputProcessorApp
 
         private void GenerateTokens()
         {
-            _tokens = _tokenizer.Tokenize(_raw, ref _maxIndices, ref _wordCount).ToArray();
+            _tokens = _tokenizer.Tokenize(_raw, ref _maxIndices, ref _wordCount, ref _lastLetter).ToArray();
             _index = 1;
             _curLetter = 0;
         }
@@ -207,16 +260,13 @@ namespace InputProcessorApp
                 _index = 0;
             }
             
-            var last = _tokens.Length - 1;
-            while (_tokens[_curLetter] == -1 || _tokens[last] == -1)
+            while (_tokens[_curLetter] == -1)
             {
-                if (_tokens[_curLetter] == -1) _curLetter++;
-                if (_tokens[last] == -1) last--;
+               _curLetter++;
             }
             
             _index = 0;
-            if (_curLetter == 0 && last == _tokens.Length - 1) return _raw;
-            return _raw.Substring(_curLetter, last - _curLetter + 1);
+            return _raw.Substring(_curLetter, _lastLetter - _curLetter);
         }
 
         private string ReadLine() => _reader.ReadLine();
@@ -232,7 +282,7 @@ namespace InputProcessorApp
                 do
                 {
                     _raw = ReadLine();
-                } while (string.IsNullOrEmpty(_raw));
+                } while (_raw.Length == 0);
 
                 _index = 0;
                 return _raw;
@@ -255,8 +305,8 @@ namespace InputProcessorApp
                     NextTrimmedLine();
                 }
 
-                while (_curLetter < _tokens.Length - 1 && _tokens[_curLetter] == -1) _curLetter++;
-                if (_curLetter == _tokens.Length - 1)
+                while (_curLetter < _lastLetter && _tokens[_curLetter] == -1) _curLetter++;
+                if (_curLetter == _lastLetter)
                 {
                     _index = 0;
                     continue;
@@ -383,7 +433,7 @@ namespace InputProcessorApp
         /// <summary>
         /// Determines whether or not more groups (tokens) are available to retrieve from the line.
         /// </summary>
-        /// <returns><c>true</c> if more groups are remaining; otherwise <c>false</c></returns>
+        /// <returns><c>true</c> if more groups are remaining; otherwise <c>false</c>.</returns>
         public bool HasMoreTokens() => _index > 0 && _index <= _wordCount && _tokens is {Length: > 0};
 
         /// <summary>
@@ -413,9 +463,15 @@ namespace InputProcessorApp
         public void AddFalseArg(IEnumerable<string> args) => _numParser.AddFalseArgs(args);
 
         /// <summary>
-        /// Gets the name of the current format style used for numbers when parsing.
+        /// Gets the name of the current <see cref="FormatStyle"/> used for numbers when parsing.
         /// </summary>
         /// <returns>The name of the format style as a <see cref="string"/>.</returns>
         public string NumberFormat() => _numParser.Style.ToString();
+
+        /// <summary>
+        /// Gets the name of the current <see cref="Match"/> style for pattern matching.
+        /// </summary>
+        /// <returns>The name of the matching style as a <see cref="string"/></returns>
+        public string MatchFormat() => Match.ToString();
     }
 }
